@@ -1,4 +1,4 @@
-import {  getAllPharmacy, getAllPharmacyApproved, getAllPharmacyYearlyData} from "../DAO/pharmacyDao.js";
+import {  getAllPharmacy, getAllPharmacyApproved, getAllPharmacySelectData, getAllPharmacyYearlyData} from "../DAO/pharmacyDao.js";
 
 
 export function getPharmacy(req, res) {
@@ -20,6 +20,13 @@ export function getPharmacyApproved(req, res) {
 export function getPharmacyYearlyData(req, res) {
     try {
         return getAllPharmacyYearlyData(req, res);
+    } catch (err) {
+        return new Error(err);
+    }
+}
+export function getPharamacySelectData(req, res) {
+    try {
+        return getAllPharmacySelectData(req, res);
     } catch (err) {
         return new Error(err);
     }

@@ -151,6 +151,15 @@ export const getAllPharmacyYearlyData = (req, res) => {
         // res.send(data)
     })
 }
+export const getAllPharmacySelectData = (req, res) => {
+    const {query} = req.body;
+    return db.query(query, {
+        type: db.QueryTypes.SELECT,
+    }).then((data)=> {
+        console.log(data)
+        res.send(data)
+    })
+}
 
 export const getAllPharmacyApproved = (req, res) => {
     const { date, month, year, startDate, endDate, range } = req.body;
@@ -250,5 +259,6 @@ export const getAllPharmacyApproved = (req, res) => {
     }
 
 }
+
 
 
