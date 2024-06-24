@@ -142,7 +142,7 @@ function generatePieChart(dataMonth, year, res) {
     res.send(chartBuffer);
 
   })()
-    .catch(err => console.error(err))
+    .catch(err => res.status(404).send(err))
     .finally(() => browser?.close());
   console.log('Pie chart saved as pharmacies_pie_chart.png');
 
