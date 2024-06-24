@@ -2,6 +2,7 @@ import pharmacyDbModel from "../Models/pharmacy.js"
 import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
 import puppeteer from 'puppeteer';
+import { chromium } from 'playwright';
 import fs from 'fs/promises';
 import ExcelJS from 'exceljs'
 
@@ -130,8 +131,8 @@ function generatePieChart(dataMonth, year, res) {
       `;
   let browser;
   (async () => {
-    browser = await puppeteer.launch();
-    const [page] = await browser.pages();
+    browser = await chromium.launch();
+    const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     const chartElement = await page.$('#container');
     await chartElement.screenshot({ path: 'pharmacies_pie_chart.png' });
