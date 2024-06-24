@@ -3,12 +3,15 @@ import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
 import puppeteer from 'puppeteer';
 import fs from 'fs/promises';
+import ExcelJS from 'exceljs'
 
 const ACTIVATE_ON_PHARAMACY = "SELECT * FROM pharmacy WHERE is_active = 1 AND ACTIVATED_ON "
 const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS count " +
  " FROM pharmacy " +
  " WHERE is_active = true AND YEAR(activated_on) = :year "+
- " GROUP BY MONTH(activated_on);"
+ " GROUP BY MONTH(activated_on) " +
+ " ORDER BY month ASC ;"
+const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
  
 function convertToStartOfMonth(dateString) {
     // Parse the input date string
@@ -51,49 +54,85 @@ function convertToStartOfMonth(dateString) {
 
 
 function generatePieChart(dataMonth, year, res) {
-    const labels = [];
-    const data = [];
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const countData = dataMonth.map((item)=>  item.count)
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+   <head>
+      <title>Highcharts Tutorial</title>
+      <script src = "https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
+      </script>
+      <script src = "https://code.highcharts.com/highcharts.js"></script>  
+   </head>
+   <body>
+      <div id = "container" style = "width: 550px; height: 400px; margin: 0 auto"></div>
+      <script language = "JavaScript">
+         $(document).ready(function() {  
+            var chart = {
+               type: 'column'
+            };
+            var title = {
+               text: 'Pharmacies Activated in ${year}'   
+            };
+          
+            var xAxis = {
+               categories: ['Jan','Feb','Mar','Apr','May','Jun','Jul',
+                  'Aug','Sep','Oct','Nov','Dec'],
+               crosshair: true
+            };
+            var yAxis = {
+               min: 0,
+               title: {
+                  text: 'Count'         
+               },      
+               
+            };
+            var tooltip = {
+               headerFormat: '<span style = "font-size:10px">{point.key}</span><table>',
+               pointFormat: '<tr><td style = "color:{series.color};padding:0">{series.name}: </td>' +
+                  '<td style = "padding:0"><b>{point.y:.1f} mm</b></td></tr>',
+               footerFormat: '</table>',
+               shared: true,
+               useHTML: true
+            };
+            var plotOptions = {
+               column: {
+                  pointPadding: 0.2,
+                  borderWidth: 0
+               }
+            };  
+            var credits = {
+               enabled: false
+            };
+            var series= [
+               {
+                  name: 'Month',
+                  data: ${JSON.stringify(countData)}
+               }, 
+               
+            ];     
+         
+            var json = {};   
+            json.chart = chart; 
+            json.title = title;   
+            json.tooltip = tooltip;
+            json.xAxis = xAxis;
+            json.yAxis = yAxis;  
+            json.series = series;
+            json.plotOptions = plotOptions;  
+            json.credits = credits;
+            $('#container').highcharts(json);
   
-    dataMonth.forEach(row => {
-      data.push({ name: monthNames[row.month - 1], y: row.count });
-    });
-    const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Chart</title>
-        <script src="https://code.highcharts.com/highcharts.js"></script>
-        <script src="https://code.highcharts.com/modules/exporting.js"></script>
-      </head>
-      <body>
-        <div id="container" style="width:800px; height:600px;"></div>
-        <script>
-          document.addEventListener('DOMContentLoaded', function () {
-            Highcharts.chart('container', {
-              chart: {
-                type: 'column'
-              },
-              title: {
-                text: 'Pharmacies Activated in ${year}'
-              },
-              series: [{
-                name: 'Activations',
-                colorByPoint: true,
-                data: ${JSON.stringify(data)}
-              }]
-            });
-          });
-        </script>
-      </body>
-    </html>
-  `;
+         });
+      </script>
+   </body>
+</html>
+      `;
   let browser;
   (async () => {
     browser = await puppeteer.launch();
     const [page] = await browser.pages();
-    await page.setContent(htmlContent);
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     const chartElement = await page.$('#container');
     await chartElement.screenshot({ path: 'pharmacies_pie_chart.png' });
     const chartBuffer = await chartElement.screenshot();
@@ -146,17 +185,60 @@ export const getAllPharmacyYearlyData = (req, res) => {
         type: db.QueryTypes.SELECT,
         replacements: queryReplacement
     }).then((data)=> {
-        let chart = generatePieChart(data, year, res)
-        console.log(chart)
+        if(data.length > 1) {
+            generatePieChart(data, year, res)
+        } else {
+            res.send({response:"Success",message: "no data found"})
+        }
         // res.send(data)
     })
 }
 export const getAllPharmacySelectData = (req, res) => {
     const {query} = req.body;
+    try {
     return db.query(query, {
         type: db.QueryTypes.SELECT,
+    }).then(async(data)=> {
+        if (data.length > 10) {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('My Data');
+            const columns = Object.keys(data[0]).map((key) => ({
+                header: key.charAt(0).toUpperCase() + key.slice(1),
+                key: key,
+                width: 20, // You can adjust the width as needed
+              }));
+            
+              worksheet.columns = columns;
+            
+              // Add rows
+              data.forEach((item) => {
+                worksheet.addRow(item);
+              });
+            
+              res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+              res.setHeader('Content-Disposition', 'attachment; filename=mydata.xlsx');
+            
+              await workbook.xlsx.write(res);
+              res.end();
+        }
+       else {
+        res.JSON(data)
+       }
+       
+    })
+    }
+    catch (error) {
+        res.status(400).send({ message: error});
+    }
+}
+
+export const getActivatedDateById = (req, res) => {
+    const id = req.query.id;
+    let queryReplacement = { id }
+    return db.query(ACTIVATED_DATE_BY_ID, {
+        type: db.QueryTypes.SELECT,
+        replacements: queryReplacement
     }).then((data)=> {
-        console.log(data)
         res.send(data)
     })
 }
