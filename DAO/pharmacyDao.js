@@ -88,9 +88,16 @@ function generatePieChart(dataMonth, year, res) {
                },      
                
             };
+             var series= [
+               {
+                  name: 'Month',
+                  data: ${JSON.stringify(countData)}
+               }, 
+               
+            ];  
             var tooltip = {
                headerFormat: '<span style = "font-size:10px">{point.key}</span><table>',
-               pointFormat: '<tr><td style = "color:{series.color};padding:0">{series.name}: </td>' +
+               pointFormat: '<tr><td style = "color:blue;padding:0"> </td>' +
                   '<td style = "padding:0"><b>{point.y:.1f} mm</b></td></tr>',
                footerFormat: '</table>',
                shared: true,
@@ -105,13 +112,7 @@ function generatePieChart(dataMonth, year, res) {
             var credits = {
                enabled: false
             };
-            var series= [
-               {
-                  name: 'Month',
-                  data: ${JSON.stringify(countData)}
-               }, 
-               
-            ];     
+              
          
             var json = {};   
             json.chart = chart; 
