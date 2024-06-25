@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
 import puppeteer from 'puppeteer';
 import { chromium } from 'playwright';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import xlsx from 'xlsx';
 import ExcelJS from 'exceljs';
@@ -22,9 +22,7 @@ const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const publicDir = join(__dirname, 'public');
-if (!fs.existsSync(publicDir)) {
-  fs.mkdirSync(publicDir);
-}
+
  
 function convertToStartOfMonth(dateString) {
     // Parse the input date string
@@ -189,14 +187,6 @@ export const getAllPharmacy = (req, res) => {
             res.status(500).send(err);
         });
 }
-export const getPublicData = (req, res) => {
-    try {
-        return express.static(publicDir)
-    }
-    catch (err) {
-res.send({error: err})
-    }
-}
 
 export const getAllPharmacyYearlyData = (req, res) => {
     const {year} = req.body;
@@ -246,19 +236,28 @@ export const getAllPharmacySelectData = (req, res) => {
 
             const wb = xlsx.utils.book_new();
             const ws = xlsx.utils.json_to_sheet(data);
-
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             // Append worksheet to workbook
             xlsx.utils.book_append_sheet(wb, ws, 'Activations');
 
             // Generate a file name
-            const fileName = `activations.xlsx`;
-            const filePath = path.join(__dirname, 'public', fileName);
+            
+            const fileName = `activations${timestamp}.xlsx`;
+            const filePath = path.join( 'public', fileName);
 
             // Write workbook to file
             xlsx.writeFile(wb, filePath);
 
             // Send the link to download the file
-            res.json({ link: `public/${fileName}` });
+            res.json({ link: `/public/${fileName}` });
+            setTimeout(async () => {
+                try {
+                  await fs.unlink(filePath);
+                  console.log(`Deleted file: ${filePath}`);
+                } catch (err) {
+                  console.error(`Failed to delete file: ${filePath}`, err);
+                }
+              }, 600000);
         }
        else {
         res.json(data)

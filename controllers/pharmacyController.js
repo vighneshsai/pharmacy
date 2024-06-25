@@ -39,11 +39,5 @@ export function getPharamacyActivatedDate(req, res) {
         return new Error(err);
     }
 }
-export function getPublicData(req, res) {
-    try {
-        return getPublicData(req, res);
-    } catch (err) {
-        return new Error(err);
-    }
-}
+
 
