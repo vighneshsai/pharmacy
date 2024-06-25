@@ -200,7 +200,7 @@ dataMonth.forEach(row => {
         console.log(`File created: ${filePath}`);
     
         // Send the link to download the file
-        res.json({ link: `/public/${fileName}` });
+        res.json({ link: `/public/${fileName}`, message:"Please find the link to download the required file below. Note that the link will only be active for the next 10 minutes, so kindly download the file as soon as possible" });
      })()
      .catch(err => res.status(404).send(err,"hiiii"))
     .finally(() => {});
@@ -300,7 +300,7 @@ export const getAllPharmacySelectData = (req, res) => {
             xlsx.writeFile(wb, filePath);
 
             // Send the link to download the file
-            res.json({ link: `/public/${fileName}` });
+            res.json({ link: `/public/${fileName}`, message: "Please find the link to download the required file below. Note that the link will only be active for the next 10 minutes, so kindly download the file as soon as possible" });
             
         }
        else {
