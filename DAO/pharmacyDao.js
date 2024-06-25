@@ -3,8 +3,12 @@ import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
 import puppeteer from 'puppeteer';
 import { chromium } from 'playwright';
-import fs from 'fs/promises';
-import ExcelJS from 'exceljs'
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
+import path from "path";
+import { dirname, join } from 'path';
 
 const ACTIVATE_ON_PHARAMACY = "SELECT * FROM pharmacy WHERE is_active = 1 AND ACTIVATED_ON "
 const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS count " +
@@ -13,6 +17,14 @@ const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS c
  " GROUP BY MONTH(activated_on) " +
  " ORDER BY month ASC ;"
 const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const publicDir = join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir);
+}
  
 function convertToStartOfMonth(dateString) {
     // Parse the input date string
@@ -177,6 +189,14 @@ export const getAllPharmacy = (req, res) => {
             res.status(500).send(err);
         });
 }
+export const getPublicData = (req, res) => {
+    try {
+        return express.static(publicDir)
+    }
+    catch (err) {
+res.send({error: err})
+    }
+}
 
 export const getAllPharmacyYearlyData = (req, res) => {
     const {year} = req.body;
@@ -202,29 +222,46 @@ export const getAllPharmacySelectData = (req, res) => {
         type: db.QueryTypes.SELECT,
     }).then(async(data)=> {
         if (data.length > 10) {
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('My Data');
-            const columns = Object.keys(data[0]).map((key) => ({
-                header: key.charAt(0).toUpperCase() + key.slice(1),
-                key: key,
-                width: 20, // You can adjust the width as needed
-              }));
+            // const workbook = new ExcelJS.Workbook();
+            // const worksheet = workbook.addWorksheet('My Data');
+            // const columns = Object.keys(data[0]).map((key) => ({
+            //     header: key.charAt(0).toUpperCase() + key.slice(1),
+            //     key: key,
+            //     width: 20, // You can adjust the width as needed
+            //   }));
             
-              worksheet.columns = columns;
+            //   worksheet.columns = columns;
             
-              // Add rows
-              data.forEach((item) => {
-                worksheet.addRow(item);
-              });
+            //   // Add rows
+            //   data.forEach((item) => {
+            //     worksheet.addRow(item);
+            //   });
+              
             
-              res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-              res.setHeader('Content-Disposition', 'attachment; filename=mydata.xlsx');
+            //   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            //   res.setHeader('Content-Disposition', 'attachment; filename=mydata.xlsx');
             
-              await workbook.xlsx.write(res);
-              res.end();
+            //   await workbook.xlsx.write(res);
+            //   res.end();
+
+            const wb = xlsx.utils.book_new();
+            const ws = xlsx.utils.json_to_sheet(data);
+
+            // Append worksheet to workbook
+            xlsx.utils.book_append_sheet(wb, ws, 'Activations');
+
+            // Generate a file name
+            const fileName = `activations.xlsx`;
+            const filePath = path.join(__dirname, 'public', fileName);
+
+            // Write workbook to file
+            xlsx.writeFile(wb, filePath);
+
+            // Send the link to download the file
+            res.json({ link: `public/${fileName}` });
         }
        else {
-        res.JSON(data)
+        res.json(data)
        }
        
     })
