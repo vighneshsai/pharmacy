@@ -3,12 +3,14 @@ import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
 import puppeteer from 'puppeteer';
 import { chromium } from 'playwright';
-import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import xlsx from 'xlsx';
 import ExcelJS from 'exceljs';
 import path from "path";
 import { dirname, join } from 'path';
+import axios from 'axios';
+import { promises as fsPromises } from 'fs';
+import fs from 'fs';
 
 const ACTIVATE_ON_PHARAMACY = "SELECT * FROM pharmacy WHERE is_active = 1 AND ACTIVATED_ON "
 const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS count " +
@@ -18,10 +20,9 @@ const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS c
  " ORDER BY month ASC ;"
 const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
 
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const publicDir = join(__dirname, 'public');
+const publicDir = join( 'public');
 
  
 function convertToStartOfMonth(dateString) {
@@ -64,97 +65,147 @@ function convertToStartOfMonth(dateString) {
   }
 
 
-function generatePieChart(dataMonth, year, res) {
-      const countData = dataMonth.map((item)=>  item.count)
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-   <head>
-      <title>Highcharts Tutorial</title>
-      <script src = "https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
-      </script>
-      <script src = "https://code.highcharts.com/highcharts.js"></script>  
-   </head>
-   <body>
-      <div id = "container" style = "width: 550px; height: 400px; margin: 0 auto"></div>
-      <script language = "JavaScript">
-         $(document).ready(function() {  
-            var chart = {
-               type: 'column'
-            };
-            var title = {
-               text: 'Pharmacies Activated in ${year}'   
-            };
+function generatePieChart (dataMonth, year, res) {
+//       const countData = dataMonth.map((item)=>  item.count)
+//       const htmlContent = `
+//         <!DOCTYPE html>
+//         <html>
+//    <head>
+//       <title>Highcharts Tutorial</title>
+//       <script src = "https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
+//       </script>
+//       <script src = "https://code.highcharts.com/highcharts.js"></script>  
+//    </head>
+//    <body>
+//       <div id = "container" style = "width: 550px; height: 400px; margin: 0 auto"></div>
+//       <script language = "JavaScript">
+//          $(document).ready(function() {  
+//             var chart = {
+//                type: 'column'
+//             };
+//             var title = {
+//                text: 'Pharmacies Activated in ${year}'   
+//             };
           
-            var xAxis = {
-               categories: ['Jan','Feb','Mar','Apr','May','Jun','Jul',
-                  'Aug','Sep','Oct','Nov','Dec'],
-               crosshair: true
-            };
-            var yAxis = {
-               min: 0,
-               title: {
-                  text: 'Count'         
-               },      
+//             var xAxis = {
+//                categories: ['Jan','Feb','Mar','Apr','May','Jun','Jul',
+//                   'Aug','Sep','Oct','Nov','Dec'],
+//                crosshair: true
+//             };
+//             var yAxis = {
+//                min: 0,
+//                title: {
+//                   text: 'Count'         
+//                },      
                
-            };
-             var series= [
-               {
-                  name: 'Month',
-                  data: ${JSON.stringify(countData)}
-               }, 
+//             };
+//              var series= [
+//                {
+//                   name: 'Month',
+//                   data: ${JSON.stringify(countData)}
+//                }, 
                
-            ];  
-            var tooltip = {
-               headerFormat: '<span style = "font-size:10px">{point.key}</span><table>',
-               pointFormat: '<tr><td style = "color:blue;padding:0"> </td>' +
-                  '<td style = "padding:0"><b>{point.y:.1f} mm</b></td></tr>',
-               footerFormat: '</table>',
-               shared: true,
-               useHTML: true
-            };
-            var plotOptions = {
-               column: {
-                  pointPadding: 0.2,
-                  borderWidth: 0
-               }
-            };  
-            var credits = {
-               enabled: false
-            };
+//             ];  
+//             var tooltip = {
+//                headerFormat: '<span style = "font-size:10px">{point.key}</span><table>',
+//                pointFormat: '<tr><td style = "color:blue;padding:0"> </td>' +
+//                   '<td style = "padding:0"><b>{point.y:.1f} mm</b></td></tr>',
+//                footerFormat: '</table>',
+//                shared: true,
+//                useHTML: true
+//             };
+//             var plotOptions = {
+//                column: {
+//                   pointPadding: 0.2,
+//                   borderWidth: 0
+//                }
+//             };  
+//             var credits = {
+//                enabled: false
+//             };
               
          
-            var json = {};   
-            json.chart = chart; 
-            json.title = title;   
-            json.tooltip = tooltip;
-            json.xAxis = xAxis;
-            json.yAxis = yAxis;  
-            json.series = series;
-            json.plotOptions = plotOptions;  
-            json.credits = credits;
-            $('#container').highcharts(json);
+//             var json = {};   
+//             json.chart = chart; 
+//             json.title = title;   
+//             json.tooltip = tooltip;
+//             json.xAxis = xAxis;
+//             json.yAxis = yAxis;  
+//             json.series = series;
+//             json.plotOptions = plotOptions;  
+//             json.credits = credits;
+//             $('#container').highcharts(json);
   
-         });
-      </script>
-   </body>
-</html>
-      `;
-  let browser;
-  (async () => {
-    browser = await chromium.launch();
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const chartElement = await page.$('#container');
-    await chartElement.screenshot({ path: 'pharmacies_pie_chart.png' });
-    const chartBuffer = await chartElement.screenshot();
-    res.setHeader('Content-Type', 'image/png');
-    res.send(chartBuffer);
+//          });
+//       </script>
+//    </body>
+// </html>
+//       `;
+//   let browser;
+//   (async () => {
+//     browser = await chromium.launch();
+//     const page = await browser.newPage();
+//     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+//     const chartElement = await page.$('#container');
+//     await chartElement.screenshot({ path: 'pharmacies_pie_chart.png' });
+//     const chartBuffer = await chartElement.screenshot();
+//     res.setHeader('Content-Type', 'image/png');
+//     res.send(chartBuffer);
 
-  })()
-    .catch(err => res.status(404).send(err))
-    .finally(() => browser?.close());
-  console.log('Pie chart saved as pharmacies_pie_chart.png');
+//   })()
+//     .catch(err => res.status(404).send(err))
+//     .finally(() => browser?.close());
+//   console.log('Pie chart saved as pharmacies_pie_chart.png');
+
+const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const labels = [];
+const data = [];
+dataMonth.forEach(row => {
+      labels.push(monthNames[row.month - 1]);
+      data.push({ name: monthNames[row.month - 1], y: row.count });
+    });
+
+    const chartConfig = {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `Pharmacies Activated in ${year}`,
+              data: data,
+              backgroundColor: 'rgba(54, 162, 235, 0.5)',
+              borderColor: 'rgb(54, 162, 235)',
+              borderWidth: 1,
+            },
+          ],
+        },
+        options: {
+          
+        },
+      }
+  
+      const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+      (async()=> {
+        const response = await axios.get(chartUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+    
+        // Generate a file name with a timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `barchart_${year}_${timestamp}.png`;
+        const filePath = join(publicDir, fileName);
+        console.log("irukenn", data);
+    
+        // Write the image to file
+        await fsPromises.writeFile(filePath, buffer);
+        console.log(`File created: ${filePath}`);
+    
+        // Send the link to download the file
+        res.json({ link: `/public/${fileName}` });
+     })()
+     .catch(err => res.status(404).send(err,"hiiii"))
+    .finally(() => {});
+      // Fetch the image from QuickChart and save it locally
+     
 
   
 }
@@ -250,14 +301,7 @@ export const getAllPharmacySelectData = (req, res) => {
 
             // Send the link to download the file
             res.json({ link: `/public/${fileName}` });
-            setTimeout(async () => {
-                try {
-                  await fs.unlink(filePath);
-                  console.log(`Deleted file: ${filePath}`);
-                } catch (err) {
-                  console.error(`Failed to delete file: ${filePath}`, err);
-                }
-              }, 600000);
+            
         }
        else {
         res.json(data)
