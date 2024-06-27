@@ -10,7 +10,6 @@ import path from "path";
 import { dirname, join } from 'path';
 import axios from 'axios';
 import { promises as fsPromises } from 'fs';
-import fs from 'fs';
 
 const ACTIVATE_ON_PHARAMACY = "SELECT * FROM pharmacy WHERE is_active = 1 AND ACTIVATED_ON "
 const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS count " +
@@ -21,7 +20,6 @@ const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS c
 const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const publicDir = join( 'public');
 
  
@@ -65,98 +63,7 @@ function convertToStartOfMonth(dateString) {
   }
 
 
-function generatePieChart (dataMonth, year, res) {
-//       const countData = dataMonth.map((item)=>  item.count)
-//       const htmlContent = `
-//         <!DOCTYPE html>
-//         <html>
-//    <head>
-//       <title>Highcharts Tutorial</title>
-//       <script src = "https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js">
-//       </script>
-//       <script src = "https://code.highcharts.com/highcharts.js"></script>  
-//    </head>
-//    <body>
-//       <div id = "container" style = "width: 550px; height: 400px; margin: 0 auto"></div>
-//       <script language = "JavaScript">
-//          $(document).ready(function() {  
-//             var chart = {
-//                type: 'column'
-//             };
-//             var title = {
-//                text: 'Pharmacies Activated in ${year}'   
-//             };
-          
-//             var xAxis = {
-//                categories: ['Jan','Feb','Mar','Apr','May','Jun','Jul',
-//                   'Aug','Sep','Oct','Nov','Dec'],
-//                crosshair: true
-//             };
-//             var yAxis = {
-//                min: 0,
-//                title: {
-//                   text: 'Count'         
-//                },      
-               
-//             };
-//              var series= [
-//                {
-//                   name: 'Month',
-//                   data: ${JSON.stringify(countData)}
-//                }, 
-               
-//             ];  
-//             var tooltip = {
-//                headerFormat: '<span style = "font-size:10px">{point.key}</span><table>',
-//                pointFormat: '<tr><td style = "color:blue;padding:0"> </td>' +
-//                   '<td style = "padding:0"><b>{point.y:.1f} mm</b></td></tr>',
-//                footerFormat: '</table>',
-//                shared: true,
-//                useHTML: true
-//             };
-//             var plotOptions = {
-//                column: {
-//                   pointPadding: 0.2,
-//                   borderWidth: 0
-//                }
-//             };  
-//             var credits = {
-//                enabled: false
-//             };
-              
-         
-//             var json = {};   
-//             json.chart = chart; 
-//             json.title = title;   
-//             json.tooltip = tooltip;
-//             json.xAxis = xAxis;
-//             json.yAxis = yAxis;  
-//             json.series = series;
-//             json.plotOptions = plotOptions;  
-//             json.credits = credits;
-//             $('#container').highcharts(json);
-  
-//          });
-//       </script>
-//    </body>
-// </html>
-//       `;
-//   let browser;
-//   (async () => {
-//     browser = await chromium.launch();
-//     const page = await browser.newPage();
-//     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-//     const chartElement = await page.$('#container');
-//     await chartElement.screenshot({ path: 'pharmacies_pie_chart.png' });
-//     const chartBuffer = await chartElement.screenshot();
-//     res.setHeader('Content-Type', 'image/png');
-//     res.send(chartBuffer);
-
-//   })()
-//     .catch(err => res.status(404).send(err))
-//     .finally(() => browser?.close());
-//   console.log('Pie chart saved as pharmacies_pie_chart.png');
-
+function generatePieChart (dataMonth, year, res, req) {
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const labels = [];
 const data = [];
@@ -193,14 +100,14 @@ dataMonth.forEach(row => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const fileName = `barchart_${year}_${timestamp}.png`;
         const filePath = join(publicDir, fileName);
-        console.log("irukenn", data);
     
         // Write the image to file
         await fsPromises.writeFile(filePath, buffer);
         console.log(`File created: ${filePath}`);
     
         // Send the link to download the file
-        res.json({ link: `/public/${fileName}`, message:"Please find the link to download the required file below. Note that the link will only be active for the next 10 minutes, so kindly download the file as soon as possible" });
+        const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
+        res.json({ link: fullUrl });
      })()
      .catch(err => res.status(404).send(err,"hiiii"))
     .finally(() => {});
@@ -249,7 +156,7 @@ export const getAllPharmacyYearlyData = (req, res) => {
         replacements: queryReplacement
     }).then((data)=> {
         if(data.length > 1) {
-            generatePieChart(data, year, res)
+            generatePieChart(data, year, res, req)
         } else {
             res.send({response:"Success",message: "no data found"})
         }
@@ -300,7 +207,8 @@ export const getAllPharmacySelectData = (req, res) => {
             xlsx.writeFile(wb, filePath);
 
             // Send the link to download the file
-            res.json({ link: `/public/${fileName}`, message: "Please find the link to download the required file below. Note that the link will only be active for the next 10 minutes, so kindly download the file as soon as possible" });
+            const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
+            res.json({ link: fullUrl });
             
         }
        else {
