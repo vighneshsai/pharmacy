@@ -210,7 +210,8 @@ export const getAllPharmacySelectData = (req, res) => {
                 // Send the link to download the file
                 const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
                 if (chart) {
-                    res.json({ link: fullUrl, chart_data: data });
+                    const columnNames = Object.keys(data[0])
+                    res.json({ link: fullUrl, chart_data: columnNames });
                 } else {
                     res.json({ link: fullUrl });
 
@@ -220,7 +221,8 @@ export const getAllPharmacySelectData = (req, res) => {
             }
             else {
                 if (chart) {
-                    res.json({ data, chart_data: data })
+                    const columnNames = Object.keys(data[0])
+                    res.json({ data, chart_data: columnNames })
                 }
                 else {
                     res.json(data)
