@@ -70,13 +70,13 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     if (!chartTitle) {
         dataMonth.forEach(row => {
             labels.push(monthNames[row.month - 1]);
-            data.push({ name: monthNames[row.month - 1], y: row.count });
+            data.push(row.count);
         });
     } else {
         dataMonth.forEach(row => {
 
             labels.push(row[`${xAxixCol}`]);
-            data.push({ name: row[`${xAxixCol}`], y: row[`${yAxixCol}`] });
+            data.push( row[`${yAxixCol}`] );
         });
     }
     const chartConfig = {
@@ -95,20 +95,24 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
 
         },
         options: {
-            scales: {
-              x: {
-                title: {
-                  display: true,
-                  text: 'X-axis Title',  // Change this to your desired x-axis title
+            plugins: {
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#fff',
+                    backgroundColor: 'rgba(34, 139, 34, 0.6)',
+                    borderColor: 'rgba(34, 139, 34, 1.0)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    formatter: (value) => {
+                    return value.y;
+                    },
                 },
-              },
-              y: {
-                title: {
-                  display: true,
-                  text: 'Y-axis Title',  // Change this to your desired y-axis title
-                },
-              },
+                background: {
+                    color: '#ffffff' // Set the background color to white
+                }
             },
+           
         }
     }
 
@@ -220,14 +224,19 @@ export const getAllPharmacySelectData = (req, res) => {
 
             }
             else {
-                if (chart) {
-                    const columnNames = Object.keys(data[0])
-                    res.json({ data, chart_data: columnNames })
+                if (data.length > 0) {
+                    if (chart) {
+                        const columnNames = Object.keys(data[0])
+                        res.json({ data, chart_data: columnNames })
+                    }
+                    else {
+                        res.json(data)
+    
+                    }
+                } else {
+                    res.status(400).send({ message: "No data found" })
                 }
-                else {
-                    res.json(data)
-
-                }
+                
             }
 
         })
