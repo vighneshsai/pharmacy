@@ -123,7 +123,7 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
 
         // Generate a file name with a timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const snakeCaseText = chartTitle.replace(/\s+/g, '_').toLowerCase();
+        const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
         const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
         const filePath = join(publicDir, fileName);
 
