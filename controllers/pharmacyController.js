@@ -47,4 +47,11 @@ export function getChartData(req, res) {
     }
 }
 
+export function getHealthCheck(req, res) {
+    try {
+        return res.status(200).send({ response: "Success", message: "Backend is connected" });
+    } catch (err) {
+        return new Error(err);
+    }
+}
 
