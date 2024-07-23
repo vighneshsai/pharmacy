@@ -22,7 +22,7 @@ const ACTIVATED_DATE_BY_ID = "SELECT ACTIVATED_ON FROM pharmacy WHERE ID = :id"
 const __filename = fileURLToPath(import.meta.url);
 const publicDir = join('public');
 
- 
+
 function convertToStartOfMonth(dateString) {
     // Parse the input date string
     const [monthName, year] = dateString.split(' ');
@@ -61,25 +61,44 @@ function convertToEndOfMonth(dateString) {
     const formattedDate = `${yearFormatted}-${monthFormatted}-${dayFormatted}`;
     return formattedDate;
 }
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
 
-
-function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAsxixTitle, xAxixCol, yAxixCol) {
+function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAsxixTitle, xAxixCol, yAxixCol, chartType, category, categoryValue, legends) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const labels = [];
     const data = [];
-    if (!chartTitle) {
+    var backgroundColors = []
+    var borderColors = []
+    if (xAxixCol && chartType == "Bar Chart") {
+        dataMonth.forEach(row => {
+            labels.push(row[`${xAxixCol}`]);
+            data.push(row[`${yAxixCol}`]);
+        });
+    } else if (category && chartType == "Pie Chart") {
+        dataMonth.forEach(row => {
+            if (category == "Month") {
+                labels.push(monthNames[row[`${category}`] - 1]);
+            } else {
+                labels.push(row[`${category}`]);
+            }
+            data.push(row[`${categoryValue}`]);
+        });
+        backgroundColors = dataMonth.map(() => getRandomColor());
+        borderColors = backgroundColors.map(color => color.replace('0.2', '1'));
+    } else {
         dataMonth.forEach(row => {
             labels.push(monthNames[row.month - 1]);
             data.push(row.count);
         });
-    } else {
-        dataMonth.forEach(row => {
-
-            labels.push(row[`${xAxixCol}`]);
-            data.push( row[`${yAxixCol}`] );
-        });
     }
-    const chartConfig = {
+    var chartConfig = {
         type: 'bar',
         data: {
             labels: labels,
@@ -87,7 +106,7 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                 {
                     label: chartTitle ? chartTitle : `Pharmacies Activated in ${year}`,
                     data: data,
-                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    backgroundColor: '#B2B0EA',
                     borderColor: 'rgb(54, 162, 235)',
                     borderWidth: 1,
                 },
@@ -97,25 +116,65 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
         options: {
             plugins: {
                 datalabels: {
+                    display: legends == "Yes",
                     anchor: 'end',
                     align: 'top',
-                    color: '#fff',
-                    backgroundColor: 'rgba(34, 139, 34, 0.6)',
-                    borderColor: 'rgba(34, 139, 34, 1.0)',
-                    borderWidth: 1,
-                    borderRadius: 5,
+                    color: '#0000FF',
                     formatter: (value) => {
-                    return value.y;
+                        return value.y;
                     },
+                    font: {
+                        weight: 'bold'
+                    }
                 },
                 background: {
                     color: '#ffffff' // Set the background color to white
                 }
             },
-           
+
         }
     }
-
+    if (chartType == "Pie Chart") {
+        chartConfig = {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Colors Pie Chart',
+                    data: data,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    datalabels: {
+                        display: legends == "Yes", // Hide data labels
+                        color: 'white',
+                        font: {
+                            size: 14, // Set the font size for the data labels
+                            weight: 'bold' // Set the font weight for the data labels
+                        }
+                    },
+                },
+                title: {
+                    display: true,
+                    text: chartTitle,
+                    color: "black",
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                }
+            }
+        };
+    }
+    console.log(chartConfig.options.plugins.legend)
     const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
     (async () => {
         const response = await axios.get(chartUrl, { responseType: 'arraybuffer' });
@@ -138,7 +197,6 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
         .catch(err => res.status(404).send(err, "hiiii"))
         .finally(() => { });
     // Fetch the image from QuickChart and save it locally
-
 
 
 }
@@ -182,7 +240,7 @@ export const getAllPharmacyYearlyData = (req, res) => {
         replacements: queryReplacement
     }).then((data) => {
         if (data.length > 1) {
-            generatePieChart(data, year, res, req)
+            generatePieChart(data, year, res, req, null, null, null, null, null, "Bar Chart", null, null, null)
         } else {
             res.send({ response: "Success", message: "no data found" })
         }
@@ -231,12 +289,12 @@ export const getAllPharmacySelectData = (req, res) => {
                     }
                     else {
                         res.json(data)
-    
+
                     }
                 } else {
                     res.status(400).send({ message: "No data found" })
                 }
-                
+
             }
 
         })
@@ -247,16 +305,22 @@ export const getAllPharmacySelectData = (req, res) => {
 }
 
 export const getChartDataByQuery = (req, res) => {
-    const { query, chart_title, x_axis_col, y_axis_col, x_axis_label, y_axis_label } = req.body;
+    const { query, chart_title, x_axis_col, y_axis_col, x_axis_label, y_axis_label, chart_type, category, categoryValue, legends } = req.body;
     try {
-        if (!query || !chart_title || !x_axis_col || !y_axis_col || !x_axis_label || !y_axis_label) {
-            res.status(400).send({ message: "chart_title, x_axis_col, y_axis_col, x_axis_label and y_axis_label is required" });
+        if (!chart_type) {
+            res.status(400).send({ message: "chart_type  is required" });
+        }
+        else if (chart_type == "Bar Chart" && !chart_title && !x_axis_col && !y_axis_col && !x_axis_label && !y_axis_label && !legends) {
+            res.status(400).send({ message: "chart_title, x_axis_col, y_axis_col, x_axis_label, legends and y_axis_label  is required" });
+        }
+        else if (chart_type == "Pie Chart" && !chart_title && !category && !categoryValue && !legends) {
+            res.status(400).send({ message: "chart_title, category, categoryValue and legends  is required" });
         } else {
             return db.query(query, {
                 type: db.QueryTypes.SELECT
             }).then((data) => {
                 if (data.length > 1) {
-                    generatePieChart(data, null, res, req, chart_title, x_axis_label, y_axis_label, x_axis_col, y_axis_col)
+                    generatePieChart(data, null, res, req, chart_title, x_axis_label, y_axis_label, x_axis_col, y_axis_col, chart_type, category, categoryValue, legends)
                 } else {
                     res.send({ response: "Success", message: "no data found" })
                 }
