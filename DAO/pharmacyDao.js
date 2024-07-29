@@ -74,10 +74,15 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     var backgroundColors = []
     var borderColors = []
     if (xAxixCol && chartType == "Bar Chart") {
-        dataMonth.forEach(row => {
-            labels.push(monthNames[row[`${xAxixCol}`]-1]);
-            data.push(row[`${yAxixCol}`]);
-        });
+        if(typeof dataMonth[0][xAxixCol] == "number") {
+            dataMonth.forEach(row => {
+                labels.push(monthNames[row[`${xAxixCol}`]] - 1);
+                data.push(row[`${yAxixCol}`]);
+            });s
+        } else {
+            res.status(400).send({error: "y_axix_column should be a number"})
+        }
+        
     } else if (category && chartType == "Pie Chart") {
         dataMonth.forEach(row => {
             if (category == "Month") {
@@ -85,7 +90,13 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
             } else {
                 labels.push(row[`${category}`]);
             }
-            data.push(row[`${categoryValue}`]);
+            if (typeof row[`${categoryValue}`] == "number") {
+                data.push(row[`${categoryValue}`]);
+            } else {
+                res.status(400).send({error: "categoryValue should be a number"})
+
+            }
+            
         });
         backgroundColors = dataMonth.map(() => getRandomColor());
         borderColors = backgroundColors.map(color => color.replace('0.2', '1'));
@@ -242,7 +253,6 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
             }
         };
     }
-    console.log(chartConfig.options.plugins.legend)
     const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
     (async () => {
         const response = await axios.get(chartUrl, { responseType: 'arraybuffer' });
