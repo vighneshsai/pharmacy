@@ -1,15 +1,12 @@
 import pharmacyDbModel from "../Models/pharmacy.js"
-import { Op } from 'sequelize';
 import db from '../db/dbconnections.js'
-import puppeteer from 'puppeteer';
-import { chromium } from 'playwright';
 import { fileURLToPath } from 'url';
 import xlsx from 'xlsx';
-import ExcelJS from 'exceljs';
 import path from "path";
-import { dirname, join } from 'path';
+import {  join } from 'path';
 import axios from 'axios';
 import { promises as fsPromises } from 'fs';
+import { log } from "console";
 
 const ACTIVATE_ON_PHARAMACY = "SELECT * FROM pharmacy WHERE is_active = 1 AND ACTIVATED_ON "
 const PHARMACY_DATA_YEARLY = "SELECT MONTH(activated_on) AS month, COUNT(*) AS count " +
@@ -78,7 +75,7 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     var borderColors = []
     if (xAxixCol && chartType == "Bar Chart") {
         dataMonth.forEach(row => {
-            labels.push(row[`${xAxixCol}`]);
+            labels.push(monthNames[row[`${xAxixCol}`]-1]);
             data.push(row[`${yAxixCol}`]);
         });
     } else if (category && chartType == "Pie Chart") {
@@ -98,6 +95,9 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
             data.push(row.count);
         });
     }
+    const step = Math.ceil((Math.max(...data) - Math.min(...data)) * 0.2);
+    const maxData = Math.max(...data);
+    const max = (maxData + step) + (step - (maxData + step) % step) % step;
     var chartConfig = {
         type: 'bar',
         data: {
@@ -106,31 +106,89 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                 {
                     label: chartTitle ? chartTitle : `Pharmacies Activated in ${year}`,
                     data: data,
-                    backgroundColor: '#B2B0EA',
-                    borderColor: 'rgb(54, 162, 235)',
-                    borderWidth: 1,
+                    backgroundColor:'#0049AF',
+                    barPercentage: 0.6,
                 },
             ],
 
         },
         options: {
+            layout: { padding: { bottom: 20, top: 25, left: 20, right: 20 } },
+            title: {
+                display: chartTitle ?true:false,
+                text: chartTitle ? chartTitle :'',
+                fontColor: '#666',
+                fontStyle: 'bold',
+                fontSize:'14',
+                fontFamily: 'PT Sans',
+              },
+            legend: {
+                display: false,
+            },
             plugins: {
+                roundedBars: true ,
                 datalabels: {
                     display: legends == "Yes",
                     anchor: 'end',
-                    align: 'top',
+                    align: 'end',
                     color: '#0000FF',
+                   
                     formatter: (value) => {
                         return value.y;
                     },
                     font: {
-                        weight: 'bold'
+                        weight: 'bold',
                     }
                 },
                 background: {
                     color: '#ffffff' // Set the background color to white
                 }
             },
+            
+            scales: {
+                xAxes: [{
+                  scaleLabel: {
+                    display: xAxisTitle && xAxisTitle.toLowerCase() !== 'null'? true: false,
+                    labelString: xAxisTitle??'',
+                    fontColor: '#8696A0',
+                    fontStyle: 'light',
+                    fontSize:'14',
+                    fontFamily: 'PT Sans',
+                  },
+                  gridLines: {
+                    display: false,
+                },
+                ticks:{
+                    fontFamily: 'PT Sans',
+                    fontColor:'#0049AF'
+                }
+                }],
+                yAxes: [{
+                  scaleLabel: {
+                    display: yAsxixTitle && yAsxixTitle.toLowerCase() !== 'null'? true: false,
+                    labelString: yAsxixTitle??'',
+                    fontColor: '#8696A0',
+                    fontStyle: 'light',
+                    fontSize:'16',
+                    fontFamily: 'PT Sans',
+                    padding: 10,
+                  },
+                  ticks: {
+                    beginAtZero: true,
+                    stepSize: step,
+                    max:max,
+                    padding: 10,
+                    fontFamily: 'PT Sans',
+                    fontSize:'12',
+                    fontColor:'#0049AF'
+                  },
+                  gridLines:{
+                    drawBorder:false,
+                    color: '#d9d8d7',
+                  }
+               
+                }],
+              }
 
         }
     }
@@ -148,10 +206,17 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                 }]
             },
             options: {
+                layout:{
+                    padding: {
+                left: 50,
+                right:50,
+                top: 10,
+                bottom: 20
+            }
+                },
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
                     },
                     datalabels: {
                         display: legends == "Yes", // Hide data labels
@@ -170,6 +235,9 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                         size: 16,
                         weight: 'bold'
                     }
+                },
+                legend:{
+                    position:'left'
                 }
             }
         };
@@ -179,12 +247,12 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     (async () => {
         const response = await axios.get(chartUrl, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data, 'binary');
-
+        
         // Generate a file name with a timestamp
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
         const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
-        const filePath = join(publicDir, fileName);
+        const filePath = join(publicDir, fileName);      
 
         // Write the image to file
         await fsPromises.writeFile(filePath, buffer);
