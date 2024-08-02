@@ -2,6 +2,7 @@ import pharmacyDbModel from "../Models/pharmacy.js"
 import db from '../db/dbconnections.js'
 import { fileURLToPath } from 'url';
 import xlsx from 'xlsx';
+import puppeteer from "puppeteer";
 import path from "path";
 import {  join } from 'path';
 import axios from 'axios';
@@ -67,18 +68,19 @@ function getRandomColor() {
     return color;
 }
 
-function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAsxixTitle, xAxixCol, yAxixCol, chartType, category, categoryValue, legends) {
+function generatePieChart (dataMonth, year, res, req, chartTitle, xAxisTitle, yAsxixTitle, xAxixCol, yAxixCol, chartType, category, categoryValue, legends) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const labels = [];
+    
     const data = [];
     var backgroundColors = []
     var borderColors = []
     if (xAxixCol && chartType == "Bar Chart") {
         if(typeof dataMonth[0][xAxixCol] == "number") {
             dataMonth.forEach(row => {
-                labels.push(monthNames[row[`${xAxixCol}`]] - 1);
+                labels.push(monthNames[row[`${xAxixCol}`] - 1]);
                 data.push(row[`${yAxixCol}`]);
-            });s
+            });
         } else {
             res.status(400).send({error: "y_axix_column should be a number"})
         }
@@ -109,6 +111,7 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     const step = Math.ceil((Math.max(...data) - Math.min(...data)) * 0.2);
     const maxData = Math.max(...data);
     const max = (maxData + step) + (step - (maxData + step) % step) % step;
+    console.log(data, labels)
     var chartConfig = {
         type: 'bar',
         data: {
@@ -117,22 +120,22 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                 {
                     label: chartTitle ? chartTitle : `Pharmacies Activated in ${year}`,
                     data: data,
-                    backgroundColor:'#0049AF',
+                    backgroundColor:'#004AAD',
                     barPercentage: 0.6,
                 },
             ],
 
         },
         options: {
-            layout: { padding: { bottom: 20, top: 25, left: 20, right: 20 } },
-            title: {
-                display: chartTitle ?true:false,
-                text: chartTitle ? chartTitle :'',
-                fontColor: '#666',
-                fontStyle: 'bold',
-                fontSize:'14',
-                fontFamily: 'PT Sans',
-              },
+            layout: { padding: { bottom: 6, top: 25, left: 8, right: 20 } },
+            // title: {
+            //     display: chartTitle ?true:false,
+            //     text: chartTitle ? chartTitle :'',
+            //     fontColor: '#666',
+            //     fontStyle: 'bold',
+            //     fontSize:'14',
+            //     fontFamily: 'canva sans - regular',
+            //   },
             legend: {
                 display: false,
             },
@@ -143,13 +146,15 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                     anchor: 'end',
                     align: 'end',
                     color: '#0000FF',
-                   
+                    fontFamily: 'canva sans - regular',
+                    fontColor:'#0049AF',
+                    fontSize:'10',
                     formatter: (value) => {
                         return value.y;
                     },
-                    font: {
-                        weight: 'bold',
-                    }
+                    // font: {
+                    //     weight: 'bold',
+                    // }
                 },
                 background: {
                     color: '#ffffff' // Set the background color to white
@@ -159,19 +164,22 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
             scales: {
                 xAxes: [{
                   scaleLabel: {
-                    display: xAxisTitle && xAxisTitle.toLowerCase() !== 'null'? true: false,
+                    display: xAxisTitle && xAxisTitle.toLowerCase() !== 'null',
                     labelString: xAxisTitle??'',
                     fontColor: '#8696A0',
                     fontStyle: 'light',
-                    fontSize:'14',
-                    fontFamily: 'PT Sans',
+                    fontSize:'12',
+                    fontFamily: 'canva sans - regular',
+                    padding: 0
                   },
                   gridLines: {
                     display: false,
                 },
                 ticks:{
-                    fontFamily: 'PT Sans',
-                    fontColor:'#0049AF'
+                    fontFamily: 'canva sans - regular',
+                    fontColor:'#0049AF',
+                    fontSize:'10',
+
                 }
                 }],
                 yAxes: [{
@@ -180,17 +188,18 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
                     labelString: yAsxixTitle??'',
                     fontColor: '#8696A0',
                     fontStyle: 'light',
-                    fontSize:'16',
-                    fontFamily: 'PT Sans',
-                    padding: 10,
+                    fontSize:'12',
+                    fontFamily: 'canva sans - regular',
+                    padding:0
+    
                   },
                   ticks: {
                     beginAtZero: true,
                     stepSize: step,
                     max:max,
-                    padding: 10,
-                    fontFamily: 'PT Sans',
-                    fontSize:'12',
+                    padding: 8,
+                    fontFamily: 'canva sans - regular',
+                    fontSize:'10',
                     fontColor:'#0049AF'
                   },
                   gridLines:{
@@ -203,6 +212,7 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
 
         }
     }
+   
     if (chartType == "Pie Chart") {
         chartConfig = {
             type: 'pie',
@@ -255,22 +265,93 @@ function generatePieChart(dataMonth, year, res, req, chartTitle, xAxisTitle, yAs
     }
     const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
     (async () => {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
         const response = await axios.get(chartUrl, { responseType: 'arraybuffer' });
         const buffer = Buffer.from(response.data, 'binary');
+        const base64Image = buffer.toString('base64');
         
-        // Generate a file name with a timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
-        const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
-        const filePath = join(publicDir, fileName);      
+        const imgSrc = `data:image/png;base64,${base64Image}`;
+        const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Buffer Image</title>
+        <style>
+            #imageContainer {
+                background: white;
+                width: 500px;
+                height: auto;
+                padding-left : -15px;
+            }
+            #titleContainer {
+                width: 500px;
+                padding: 15px;
+                background: #F1F1F1
+            }
+            #text{
+            	color:#737373;
+                font-family: 'Roboto', sans-serif;;
+                font-weight:600;
+                font-size: 14px;
+                margin-bottom:5px
+                
+            }
+            img {
+                width: 100%;
+                height: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div id ="titleContainer">
+        <div id="text"> ${chartTitle ? chartTitle : "BarChart"}</div>
+            <div id="imageContainer">
+                <img src="${imgSrc}" alt="Buffer Image"/>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+    await page.setContent(htmlContent);
+    await page.setViewport({ width: 600,
+        height: 800, // Adjust height as necessary
+        deviceScaleFactor: 2});
+    // Take a screenshot
+    await page.waitForSelector('#titleContainer');
 
-        // Write the image to file
-        await fsPromises.writeFile(filePath, buffer);
-        console.log(`File created: ${filePath}`);
+        // Select the element and take a screenshot of it
+        const element = await page.$('#titleContainer');
+        const screenshotBuffer = await element.screenshot({
+            type: 'png',        // Save as JPEG
+            // quality: 100,         // Set quality (0-100)
+            omitBackground: true // Omit the background
+        });
+
+    await browser.close();
+    //  Set the response headers to indicate an image
+     res.setHeader('Content-Type', 'image/png');
+     res.setHeader('Content-Disposition', 'inline; filename="output.png"');
+
+     // Send the image buffer as the response
+     res.send(screenshotBuffer);
+
+        // Generate a file name with a timestamp
+
+        // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        // const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
+        // const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
+        // const filePath = join(publicDir, fileName);      
+        // console.log(buffer)
+        // // Write the image to file
+        // await fsPromises.writeFile(filePath, screenshotBuffer);
+        // console.log(`File created: ${filePath}`);
 
         // Send the link to download the file
-        const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
-        res.json({ link: fullUrl });
+        // const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
+        // res.json({ link: fullUrl });
     })()
         .catch(err => res.status(404).send(err, "hiiii"))
         .finally(() => { });
