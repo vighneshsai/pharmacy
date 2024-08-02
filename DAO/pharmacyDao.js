@@ -290,18 +290,19 @@ function generatePieChart (dataMonth, year, res, req, chartTitle, xAxisTitle, yA
                 width: 500px;
                 padding: 10px 15px 10px 15px;
                 background: #F1F1F1;
+                padding-top: 10px
             }
             #text{
             	color:#737373;
                 font-family: 'Roboto', sans-serif;;
-                font-weight:600;
+                font-weight:500;
                 font-size: 14px;
                 margin-bottom:10px
             }
             #waterMark{
             	color:#737373;
                 font-family: 'Roboto', sans-serif;;
-                font-weight:600;
+                font-weight:500;
                 font-size: 14px;
                 margin-top:10px;
                 margin-left: 10px;
