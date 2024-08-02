@@ -288,16 +288,23 @@ function generatePieChart (dataMonth, year, res, req, chartTitle, xAxisTitle, yA
             }
             #titleContainer {
                 width: 500px;
-                padding: 15px;
-                background: #F1F1F1
+                padding: 10px 15px 10px 15px;
+                background: #F1F1F1;
             }
             #text{
             	color:#737373;
                 font-family: 'Roboto', sans-serif;;
                 font-weight:600;
                 font-size: 14px;
-                margin-bottom:5px
-                
+                margin-bottom:10px
+            }
+            #waterMark{
+            	color:#737373;
+                font-family: 'Roboto', sans-serif;;
+                font-weight:600;
+                font-size: 14px;
+                margin-top:10px;
+                margin-left: 10px;
             }
             img {
                 width: 100%;
@@ -311,6 +318,7 @@ function generatePieChart (dataMonth, year, res, req, chartTitle, xAxisTitle, yA
             <div id="imageContainer">
                 <img src="${imgSrc}" alt="Buffer Image"/>
             </div>
+        <div id="waterMark">PharmaQ</div>   
         </div>
     </body>
     </html>
