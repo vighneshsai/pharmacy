@@ -332,26 +332,26 @@ function generatePieChart (dataMonth, year, res, req, chartTitle, xAxisTitle, yA
 
     await browser.close();
     //  Set the response headers to indicate an image
-     res.setHeader('Content-Type', 'image/png');
-     res.setHeader('Content-Disposition', 'inline; filename="output.png"');
+    //  res.setHeader('Content-Type', 'image/png');
+    //  res.setHeader('Content-Disposition', 'inline; filename="output.png"');
 
-     // Send the image buffer as the response
-     res.send(screenshotBuffer);
+    //  // Send the image buffer as the response
+    //  res.send(screenshotBuffer);
 
         // Generate a file name with a timestamp
 
-        // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        // const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
-        // const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
-        // const filePath = join(publicDir, fileName);      
-        // console.log(buffer)
-        // // Write the image to file
-        // await fsPromises.writeFile(filePath, screenshotBuffer);
-        // console.log(`File created: ${filePath}`);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const snakeCaseText = chartTitle?.replace(/\s+/g, '_')?.toLowerCase();
+        const fileName = chartTitle ? `barchart_${snakeCaseText}_${timestamp}.png` : `barchart_${year}_${timestamp}.png`;
+        const filePath = join(publicDir, fileName);      
+        console.log(buffer)
+        // Write the image to file
+        await fsPromises.writeFile(filePath, screenshotBuffer);
+        console.log(`File created: ${filePath}`);
 
         // Send the link to download the file
-        // const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
-        // res.json({ link: fullUrl });
+        const fullUrl = `${req.protocol}://${req.get('host')}/public/${fileName}`;
+        res.json({ link: fullUrl });
     })()
         .catch(err => res.status(404).send(err, "hiiii"))
         .finally(() => { });
